@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import sys
 import os
@@ -7,36 +5,49 @@ from PIL import Image, ImageChops, ImageEnhance
 from concurrent.futures import ThreadPoolExecutor
 import subprocess
 import tempfile
+import atexit
+import shutil
+
+def cleanup():
+    shutil.rmtree('/tmp/pemi/')
+
+atexit.register(cleanup)
+
 
 TMP_EXT = ".tmp.jpg"
 PEMI_EXT = ".jpg"
 SAVE_REL_DIR = "processed"
+FRAME_RATE = 30  # or any desired frame rate value
+OUTPUT_DIR = "/tmp/pemi" #as tempdir
 quality = 5
 accepted_image_formats = (".png", ".jpg", ".jpeg", ".webp")
 accepted_video_formats = (".mp4", ".mov", ".webm", ".avi", ".flv", ".f4v", ".mkv")
 
+
 def extract_frames(input_video, output_dir):
-    subprocess.run(["ffmpeg", "-i", input_video, "-q:v", "1", f"{output_dir}/frame%04d.jpg"])
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    cmd = f"ffmpeg -i '{input_video}' -vf 'scale=1920:-2' '{output_dir}/tf_%07d.jpg'"
+    os.system(cmd)
+
 
 def stitch_frames(input_dir, output_video):
-    subprocess.run(
-        [
-            "ffmpeg",
-            "-framerate",
-            "30",
-            "-i",
-            f"{input_dir}/frame%04d.jpg",
-            "-c:v",
-            "libx265",
-            "-crf",
-            "0",
-            "-preset",
-            "veryslow",
-            "-pix_fmt",
-            "yuv420p",
-            output_video,
-        ]
+    input_pattern = os.path.join(input_dir, "pemi_tf_1%07d.jpg")
+    cmd = (
+        f"ffmpeg -y -framerate {FRAME_RATE} -pattern_type glob -i '{input_pattern}' "
+        f"-c:v libx264 -profile:v high -crf 1 -pix_fmt yuv420p "
+        f"-vf 'copy' './(input_video)'"
     )
+    os.system(cmd)
+
+
+    try:
+        subprocess.run(cmd, shell=True, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error while stitching frames: {e}")
+        raise
+
 
 def pemi(fname, orig_dir, save_dir):
     basename, ext = os.path.splitext(fname)
@@ -58,11 +69,6 @@ def pemi(fname, orig_dir, save_dir):
     pemi_im.save(pemi_fname)
     os.remove(tmp_fname)
 
-def install():
-    os.system("sudo rm /usr/local/bin/pemi")
-    os.system("chmod +x ~/pemi.py")
-    os.system("sudo ln -s ~/pemi.py /usr/local/bin/pemi")
-
 def process(input_path):
     if os.path.isfile(input_path):
         input_ext = os.path.splitext(input_path)[1].lower()
@@ -72,24 +78,24 @@ def process(input_path):
             print(f"Processed image saved as pemi_{os.path.basename(input_path)}")
         elif input_ext in accepted_video_formats:
             output_video = os.path.splitext(input_path)[0] + "_pemi.mp4"
-            with tempfile.TemporaryDirectory() as tmpdir:
-                extract_frames(input_path, tmpdir)
-                pemi_dirc = os.path.join(tmpdir, SAVE_REL_DIR)
 
-                if not os.path.exists(pemi_dirc):
-                    os.makedirs(pemi_dirc)
+            if not os.path.exists(OUTPUT_DIR):
+                os.makedirs(OUTPUT_DIR)
 
-                image_files = [d for d in os.listdir(tmpdir) if d.lower().endswith(".jpg")]
+            extract_frames(input_path, OUTPUT_DIR)
+            pemi_dirc = os.path.join(OUTPUT_DIR, SAVE_REL_DIR)
 
-                with ThreadPoolExecutor() as executor:
-                    for image_file in image_files:
-                        executor.submit(pemi, image_file, tmpdir, pemi_dirc)
+            if not os.path.exists(pemi_dirc):
+                os.makedirs(pemi_dirc)
 
-                stitch_frames(pemi_dirc, output_video)
-                print(f"Processed video saved as {output_video}")
+            image_files = [d for d in os.listdir(OUTPUT_DIR) if d.lower().endswith(".jpg")]
 
-        else:
-            print(f"Invalid file format for {input_path}. Accepted formats: {accepted_image_formats + accepted_video_formats}")
+            with ThreadPoolExecutor() as executor:
+                for image_file in image_files:
+                    executor.submit(pemi, image_file, OUTPUT_DIR, pemi_dirc)
+
+            stitch_frames(pemi_dirc, output_video)
+            print(f"Processed video saved as {output_video}")
 
     elif os.path.isdir(input_path):
         pemi_dirc = os.path.join(input_path, SAVE_REL_DIR)
@@ -111,18 +117,16 @@ def process(input_path):
     else:
         print("Invalid input path. Please provide a valid file or directory path.")
 
+
 def main():
     parser = argparse.ArgumentParser(description="Performs Photoelectromagnetic Analysis on images or video.")
     parser.add_argument("-i", "--input", dest="input_path", required=True, help="Input file or directory")
-    parser.add_argument("--install", action="store_true", help="Install or reinstall the script to the system")
 
     args = parser.parse_args()
 
-    if args.install:
-        install()
-        print("The script has been installed/reinstalled successfully")
-    else:
-        process(args.input_path)
+    process(args.input_path)
+
+    atexit.register(cleanup)
 
 if __name__ == "__main__":
     main()
