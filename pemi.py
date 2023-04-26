@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import atexit
 import shutil
+import subprocess
 
 def cleanup():
     shutil.rmtree('/tmp/pemi/')
@@ -19,6 +20,7 @@ PEMI_EXT = ".jpg"
 SAVE_REL_DIR = "processed"
 FRAME_RATE = 30  # or any desired frame rate value
 OUTPUT_DIR = "/tmp/pemi" #as tempdir
+OUTPUT_VIDEO = ./output.mp4
 quality = 5
 accepted_image_formats = (".png", ".jpg", ".jpeg", ".webp")
 accepted_video_formats = (".mp4", ".mov", ".webm", ".avi", ".flv", ".f4v", ".mkv")
@@ -28,19 +30,18 @@ def extract_frames(input_video, output_dir):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    cmd = f"ffmpeg -i '{input_video}' -vf 'scale=1920:-2' '{output_dir}/tf_%07d.jpg'"
+    cmd = f"ffmpeg -i '{input_video}' -vf 'copy' '{output_dir}/tf_%07d.jpg'"
     os.system(cmd)
 
 
-def stitch_frames(input_dir, output_video):
-    input_pattern = os.path.join(input_dir, "pemi_tf_1%07d.jpg")
+def stitch_frames(output_dir, output_video):
+    input_pattern = os.path.join(output_dir, "*.jpg")
+    output_format = "mp4"
+
     cmd = (
-        f"ffmpeg -y -framerate {FRAME_RATE} -pattern_type glob -i '{input_pattern}' "
-        f"-c:v libx264 -profile:v high -crf 1 -pix_fmt yuv420p "
-        f"-vf 'copy' './(input_video)'"
+        f"ffmpeg -y -framerate {FRAME_RATE} -f image2 -pattern_type glob -i '{input_pattern}' "
+        f"-vf 'scale=1920:-2' -c:v libx265 -crf 1 '{output_video}'"
     )
-    os.system(cmd)
-
 
     try:
         subprocess.run(cmd, shell=True, check=True)
