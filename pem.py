@@ -5,7 +5,7 @@ import os
 # Title and Description
 st.title("Image Quality Degradation Analysis")
 st.write("Upload an image to visualize quality degradation using PEM degradation difference image analysis.")
-st.write("DOI: 10.6084/m9.figshare.27308148")
+st.write("10.6084/m9.figshare.27308148")
 
 # Image Upload
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
