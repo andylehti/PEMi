@@ -49,11 +49,11 @@ def processFile(path, k=0, m=5, x=5, y=0):
         os.makedirs(n)
     d = os.path.abspath(n)
     outPath = f"{d}/{n}-{m}+{x}{ext}" if k == 0 else f"{d}/{str(k).zfill(5)}_{n}-{m}+{x}{ext}"
-    processImage(path, outPath, m * 20 * 50, x, y)
+    processImage(path, outPath, m * (x*5) * 50, x, y)
 
 i = '/content/final.jpg'
 frame = 0
 magnitude = 5
-index = 5
+index = 1
 combine = 0
 processFile(i, frame, magnitude, index, combine)
