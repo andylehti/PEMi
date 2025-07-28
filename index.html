@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>FFmpeg WASM Frame Extract, Process, Reassemble</title>
+  <style>
+    video, canvas { max-width: 320px; margin: 8px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+
+  <h2>Upload Video</h2>
+  <input type="file" id="uploader" accept="video/*" />
+
+  <h3>Original Video</h3>
+  <video id="video-original" controls></video>
+
+  <h3>Processed Video</h3>
+  <video id="video-processed" controls></video>
+
+  <h3>Frame Processing Preview</h3>
+  <canvas id="canvas-preview"></canvas>
+
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.8/dist/ffmpeg.min.js"></script>
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: true });
+
+    const uploader = document.getElementById('uploader');
+    const videoOriginal = document.getElementById('video-original');
+    const videoProcessed = document.getElementById('video-processed');
+    const canvasPreview = document.getElementById('canvas-preview');
+    const ctxPreview = canvasPreview.getContext('2d');
+
+    // Your image processing adapted for ImageData input/output
+    async function processCanvasImage(imageData) {
+      // Parameters
+      const jpegQuality = 5; // scale 0-100, very low quality
+      const gamma = 25;
+
+      // Create offscreen canvas for original frame
+      const width = imageData.width;
+      const height = imageData.height;
+
+      // Original canvas
+      const origCanvas = new OffscreenCanvas(width, height);
+      const origCtx = origCanvas.getContext('2d');
+      origCtx.putImageData(imageData, 0, 0);
+
+      // Recompress original canvas to JPEG blob at low quality
+      const blob = await origCanvas.convertToBlob({ type: 'image/jpeg', quality: jpegQuality / 100 });
+      const bitmap = await createImageBitmap(blob);
+
+      // Draw recompressed image on another canvas
+      const recompressCanvas = new OffscreenCanvas(width, height);
+      const recompressCtx = recompressCanvas.getContext('2d');
+      recompressCtx.drawImage(bitmap, 0, 0, width, height);
+      const recompressedData = recompressCtx.getImageData(0, 0, width, height);
+
+      // Compute difference amplified by gamma factor
+      for (let i = 0; i < imageData.data.length; i += 4) {
+        recompressedData.data[i] = Math.min(Math.abs(imageData.data[i] - recompressedData.data[i]) * gamma, 255);
+        recompressedData.data[i+1] = Math.min(Math.abs(imageData.data[i+1] - recompressedData.data[i+1]) * gamma, 255);
+        recompressedData.data[i+2] = Math.min(Math.abs(imageData.data[i+2] - recompressedData.data[i+2]) * gamma, 255);
+        recompressedData.data[i+3] = 255; // opaque
+      }
+      return recompressedData;
+    }
+
+    async function extractFramesAndProcess(file) {
+      if (!ffmpeg.isLoaded()) {
+        await ffmpeg.load();
+      }
+
+      // Write input video to ffmpeg FS
+      ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(file));
+
+      // Extract frames as png images, frame_%03d.png
+      // Output frame rate 10 fps to limit number of frames, adjust if needed
+      await ffmpeg.run('-i', 'input.mp4', '-vf', 'fps=10', 'frame_%03d.png');
+
+      // Read all frames from FS
+      let frames = [];
+      let i = 1;
+      while (true) {
+        const frameName = `frame_${String(i).padStart(3, '0')}.png`;
+        try {
+          const data = ffmpeg.FS('readFile', frameName);
+          frames.push({ name: frameName, data });
+          i++;
+        } catch {
+          break;
+        }
+      }
+
+      // Process frames one by one
+      for (let idx = 0; idx < frames.length; idx++) {
+        const frame = frames[idx];
+
+        // Convert Uint8Array to Blob
+        const blob = new Blob([frame.data.buffer], { type: 'image/png' });
+        // Create ImageBitmap from blob for canvas draw
+        const bitmap = await createImageBitmap(blob);
+
+        // Set canvas size to frame
+        canvasPreview.width = bitmap.width;
+        canvasPreview.height = bitmap.height;
+
+        // Draw bitmap on canvasPreview and get ImageData
+        ctxPreview.drawImage(bitmap, 0, 0);
+        const imageData = ctxPreview.getImageData(0, 0, bitmap.width, bitmap.height);
+
+        // Process image data using your function
+        const processedData = await processCanvasImage(imageData);
+
+        // Put processed imageData back on preview canvas (for user preview)
+        ctxPreview.putImageData(processedData, 0, 0);
+
+        // Convert processed canvas to PNG Uint8Array for ffmpeg
+        // To do this, convert canvas to Blob and then to Uint8Array
+        const processedBlob = await new Promise(resolve => canvasPreview.toBlob(resolve, 'image/png'));
+        const arrayBuffer = await processedBlob.arrayBuffer();
+        const processedUint8 = new Uint8Array(arrayBuffer);
+
+        // Overwrite original frame with processed frame in ffmpeg FS
+        ffmpeg.FS('writeFile', frame.name, processedUint8);
+      }
+
+      // Now reassemble processed frames to video
+      // Use same fps (10), encoding options can be adjusted
+      await ffmpeg.run(
+        '-framerate', '10',
+        '-i', 'frame_%03d.png',
+        '-c:v', 'libx264',
+        '-pix_fmt', 'yuv420p',
+        'output.mp4'
+      );
+
+      // Read final output
+      const outputData = ffmpeg.FS('readFile', 'output.mp4');
+
+      // Create blob URL for processed video
+      const processedVideoBlob = new Blob([outputData.buffer], { type: 'video/mp4' });
+      videoProcessed.src = URL.createObjectURL(processedVideoBlob);
+      videoProcessed.load();
+      videoProcessed.play();
+    }
+
+    uploader.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      // Show original video preview
+      videoOriginal.src = URL.createObjectURL(file);
+      videoOriginal.load();
+
+      await extractFramesAndProcess(file);
+    });
+  </script>
+
+</body>
+</html>
