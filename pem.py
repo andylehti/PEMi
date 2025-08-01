@@ -82,10 +82,15 @@ def process_video(video_path):
         temp_video_file.name,
         codec='libx264',
         audio_codec='aac',
-        bitrate='4000k',  # Adjusted lower bitrate to reduce file size
-        preset='medium',    # Adjust encoding speed vs compression
-        threads=4,          # Utilize multiple threads for faster encoding
-        ffmpeg_params=["-movflags", "faststart"]  # Optimize for web streaming
+        bitrate='8000k',
+        preset='slow',
+        threads=8,
+        ffmpeg_params=[
+            "-movflags", "faststart",
+            "-pix_fmt", "yuv420p",
+            "-profile:v", "high",
+            "-level", "4.2"
+        ]
     )
 
     return temp_video_file.name
