@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createFFmpeg, fetchFile } = FFmpeg;
     const ffmpeg = createFFmpeg({
       log: false,
-      corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js',
+      corePath: 'https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js',
     });
     await ffmpeg.load();
     const fileInput = document.getElementById('fileInput');
