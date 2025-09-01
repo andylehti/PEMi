@@ -1,5 +1,8 @@
 const { createFFmpeg, fetchFile } = FFmpeg;
-const ffmpeg = createFFmpeg({ log: false });
+const ffmpeg = createFFmpeg({
+  log: false,
+  corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js',
+});
 
 const fileInput = document.getElementById('fileInput');
 const mInput = document.getElementById('mInput');
