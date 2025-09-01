@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image Degradation Analysis</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- JSZip for creating and downloading ZIP files -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.6.0/jszip.min.js"></script>
+  <!-- FFmpeg.js for video processing -->
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.7/dist/ffmpeg.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    input[type="radio"] + label {
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 9999px;
+      transition: background-color 0.2s;
+    }
+    input[type="radio"]:checked + label {
+      background-color: #e5e7eb;
+    }
+    .dark input[type="radio"]:checked + label {
+      background-color: #374151;
+    }
+    #drop-area {
+      border: 2px dashed transparent;
+      transition: border-color 0.2s;
+    }
+    #drop-area.drag-over {
+      border-color: #6366f1;
+    }
+    .button-disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    /* Progress bar styling */
+    .progress-bar-container {
+      width: 100%;
+      background-color: #e5e7eb;
+      border-radius: 9999px;
+      height: 1.5rem;
+      overflow: hidden;
+    }
+    .dark .progress-bar-container {
+      background-color: #374151;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background-color: #6366f1;
+      transition: width 0.3s ease-in-out;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col items-center justify-center p-4 transition-colors">
+  
+  <button id="darkModeToggle" class="fixed top-4 right-4 p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 transition-colors shadow">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="darkModeIcon">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+    </svg>
+  </button>
+  
+  <div id="drop-area" class="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg max-w-2xl w-full transition-colors">
+    <h1 class="text-3xl font-bold mb-2 text-center">Image Degradation Analysis</h1>
+    <p class="text-center text-gray-600 dark:text-gray-400 mb-6">
+      Use this tool to analyze compression artifacts in an image or video. Drag and drop a file or use the button below.
+    </p>
+
+    <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+      <div class="flex flex-col w-full">
+        <label for="fileInput" class="font-semibold mb-2">Select File:</label>
+        <input id="fileInput" type="file" accept="image/*,video/*" class="w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 dark:file:bg-violet-800 dark:file:text-violet-200 dark:hover:file:bg-violet-700 cursor-pointer transition-colors">
+      </div>
+    </div>
+
+    <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
+      <div class="flex-1 w-full">
+        <label for="mInput" class="font-semibold mb-2 block">m (1-5): <span id="mVal" class="font-normal">3</span></label>
+        <input id="mInput" type="range" min="1" max="5" value="3" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+      </div>
+      <div class="flex-1 w-full">
+        <label for="xInput" class="font-semibold mb-2 block">x (1-10): <span id="xVal" class="font-normal">5</span></label>
+        <input id="xInput" type="range" min="1" max="10" value="5" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+      </div>
+    </div>
+    
+    <div class="flex flex-col items-center justify-center mb-6">
+      <div class="flex items-center justify-center mb-4">
+        <span class="font-semibold mr-4">Stitch Direction:</span>
+        <div class="flex space-x-2">
+            <input type="radio" id="stitchNone" name="stitchDirection" value="none" class="hidden" checked>
+            <label for="stitchNone" class="flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-full w-8 h-8 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <span class="font-bold text-gray-800 dark:text-gray-200">X</span>
+            </label>
+            <input type="radio" id="stitchLeft" name="stitchDirection" value="left" class="hidden">
+            <label for="stitchLeft" class="flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-full w-8 h-8 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </label>
+            <input type="radio" id="stitchTop" name="stitchDirection" value="top" class="hidden">
+            <label for="stitchTop" class="flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-full w-8 h-8 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
+                </svg>
+            </label>
+            <input type="radio" id="stitchBottom" name="stitchDirection" value="bottom" class="hidden">
+            <label for="stitchBottom" class="flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-full w-8 h-8 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </label>
+            <input type="radio" id="stitchRight" name="stitchDirection" value="right" class="hidden">
+            <label for="stitchRight" class="flex items-center justify-center bg-gray-200 dark:bg-gray-700 rounded-full w-8 h-8 hover:bg-gray-300 dark:hover:bg-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </label>
+        </div>
+      </div>
+      <div class="flex items-center justify-center">
+        <input id="detailsCheck" type="checkbox" class="w-4 h-4 text-violet-600 dark:bg-gray-700 bg-gray-100 rounded border-gray-300 dark:border-gray-600 focus:ring-violet-500">
+        <label for="detailsCheck" class="ml-2">Show details on photo?</label>
+      </div>
+    </div>
+
+    <div class="flex space-x-4 justify-center">
+      <button id="processBtn" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-6 rounded-full transition-colors">
+        Process
+      </button>
+      <button id="gridBtn" class="bg-violet-600 hover:bg-violet-700 text-white font-bold py-2 px-6 rounded-full transition-colors">
+        Grid Analysis
+      </button>
+      <button id="standardBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-bold py-2 px-6 rounded-full transition-colors">
+        STANDARD
+      </button>
+      <button id="saveBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-bold py-2 px-6 rounded-full transition-colors">
+        Save
+      </button>
+      <button id="compileBtn" class="hidden bg-gray-200 hover:bg-gray-300 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-200 font-bold py-2 px-6 rounded-full transition-colors">
+        Compile Video
+      </button>
+    </div>
+    
+    <div id="processing-indicator-container" class="mt-4 hidden min-h-[1.25rem] w-full text-center">
+      <div class="progress-bar-container">
+        <div id="progressBar" class="progress-bar-fill w-0"></div>
+      </div>
+      <p id="processingText" class="text-sm mt-2 text-gray-600 dark:text-gray-400">Processing...</p>
+    </div>
+
+    <div id="canvas-container" class="relative mt-6">
+      <canvas id="resultCanvas" class="w-full h-auto rounded-lg shadow-md"></canvas>
+    </div>
+  </div>
+  
+  <script src="main.js"></script>
+</body>
+</html>
