@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
       log: false,
       corePath: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js',
     });
-    
+
     const fileInput = document.getElementById('fileInput');
     const mInput = document.getElementById('mInput');
     const xInput = document.getElementById('xInput');
@@ -23,15 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const processingText = document.getElementById('processingText');
     const progressBar = document.getElementById('progressBar');
     const rCtx = resultCanvas.getContext('2d');
-    
+
     let loadedFile = null;
     let originalFileName = '';
     let processedFrames = [];
     let isVideo = false;
-    
+
     mInput.addEventListener('input', () => { mVal.textContent = mInput.value; });
     xInput.addEventListener('input', () => { xVal.textContent = xInput.value; });
-    
+
     function setProcessingState(isProcessing, message = 'Processing...') {
       const buttons = [processBtn, gridBtn, standardBtn, saveBtn, compileBtn];
       if (isProcessing) {
@@ -49,13 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
     }
-    
+
     fileInput.addEventListener('change', async e => {
       const files = e.target.files;
       if (!files.length) return;
       loadedFile = files[0];
       originalFileName = loadedFile.name.split('.').slice(0, -1).join('.');
-      
+
       if (loadedFile.type.startsWith('image/')) {
         isVideo = false;
         processBtn.textContent = 'Process Image';
@@ -72,16 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
         setProcessingState(false);
       }
     });
-    
+
     dropArea.addEventListener('dragover', e => {
       e.preventDefault();
       dropArea.classList.add('drag-over');
     });
-    
+
     dropArea.addEventListener('dragleave', e => {
       dropArea.classList.remove('drag-over');
     });
-    
+
     dropArea.addEventListener('drop', async e => {
       e.preventDefault();
       dropArea.classList.remove('drag-over');
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
     });
-    
+
     processBtn.addEventListener('click', async () => {
       if (!loadedFile) return;
       if (isVideo) {
@@ -115,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await processImageFile(loadedFile);
       }
     });
-    
+
     gridBtn.addEventListener('click', async () => {
         if (!loadedFile || isVideo) return;
         setProcessingState(true, 'Creating Grid...');
@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const resultCanvases = [];
         const img = new Image();
         img.src = URL.createObjectURL(loadedFile);
-        
+
         img.onload = async () => {
             for (let x = 1; x <= 10; x++) {
                 const tempCanvas = document.createElement('canvas');
@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const itemHeight = img.height;
             gridCanvas.width = itemWidth * 5;
             gridCanvas.height = itemHeight * 2;
-            
+
             for (let i = 0; i < resultCanvases.length; i++) {
                 const row = Math.floor(i / 5);
                 const col = i % 5;
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setProcessingState(false);
         };
     });
-    
+
     standardBtn.addEventListener('click', async () => {
       if (!loadedFile || isVideo) return;
       setProcessingState(true);
@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
       xVal.textContent = 5;
       await processImageFile(loadedFile);
     });
-    
+
     saveBtn.addEventListener('click', async () => {
       if (!loadedFile) return;
       if (isVideo) {
@@ -201,12 +201,12 @@ document.addEventListener('DOMContentLoaded', () => {
         link.click();
       }
     });
-    
+
     compileBtn.addEventListener('click', async () => {
         if (!loadedFile || !isVideo || processedFrames.length === 0) return;
         await compileVideo(loadedFile);
     });
-    
+
     darkModeToggle.addEventListener('click', () => {
       document.documentElement.classList.toggle('dark');
       const isDark = document.documentElement.classList.contains('dark');
@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         icon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>`;
       }
     });
-    
+
     async function processImageFile(file) {
       setProcessingState(true);
       return new Promise(resolve => {
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         img.src = URL.createObjectURL(file);
       });
     }
-    
+
     async function processVideoFile(file) {
       setProcessingState(true, 'Extracting frames...');
       processedFrames = [];
@@ -249,23 +249,23 @@ document.addEventListener('DOMContentLoaded', () => {
       video.muted = true;
       video.preload = 'metadata';
       video.crossOrigin = 'anonymous';
-    
+
       await new Promise(resolve => {
         video.onloadedmetadata = () => resolve();
       });
-    
+
       const frameCanvas = document.createElement('canvas');
       const frameCtx = frameCanvas.getContext('2d');
       frameCanvas.width = video.videoWidth;
       frameCanvas.height = video.videoHeight;
       resultCanvas.width = video.videoWidth;
       resultCanvas.height = video.videoHeight;
-      
+
       const fps = 30; // Assuming 30 FPS for extraction
       const step = 1 / fps;
       let time = 0;
       const extractedFrames = [];
-      
+
       while (time < video.duration) {
         video.currentTime = time;
         await new Promise(resolve => {
@@ -275,13 +275,13 @@ document.addEventListener('DOMContentLoaded', () => {
         extractedFrames.push(frameCanvas.toDataURL('image/png'));
         time += step;
       }
-      
+
       processedFrames = [];
       const mValNum = clampInt(parseInt(mInput.value), 1, 5);
       const xValNum = clampInt(parseInt(xInput.value), 1, 10);
       const stitchDirection = document.querySelector('input[name="stitchDirection"]:checked').value;
       const showDetails = detailsCheck.checked;
-    
+
       for (let i = 0; i < extractedFrames.length; i++) {
         if (i % 13 === 0) {
           const percent = Math.floor((i / extractedFrames.length) * 100);
@@ -300,13 +300,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
       }
-      
+
       progressBar.style.width = `100%`;
       processingText.textContent = `Processing complete!`;
       compileBtn.classList.remove('hidden');
       setTimeout(() => setProcessingState(false), 500);
     }
-    
+
     function processFile(imgElem, m, x, stitchDirection, showDetails, callback) {
       let scaleFactor = m * (x * 5) * 50;
       let quality = Math.min(10, x);
@@ -346,11 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
-    
+
     function compressImage(imgElem, q, callback) {
       let w = imgElem.width, h = imgElem.height;
       let tempCanvas = document.createElement('canvas');
-      tempCanvas.width = w;  
+      tempCanvas.width = w;
       tempCanvas.height = h;
       let tCtx = tempCanvas.getContext('2d');
       tCtx.drawImage(imgElem, 0, 0);
@@ -359,23 +359,23 @@ document.addEventListener('DOMContentLoaded', () => {
       cImg.onload = () => callback(cImg);
       cImg.src = data;
     }
-    
+
     function createDiff(orig, comp, sFactor) {
       let w = orig.width, h = orig.height;
       let oCanvas = document.createElement('canvas');
-      oCanvas.width = w;  
+      oCanvas.width = w;
       oCanvas.height = h;
       let oCtx = oCanvas.getContext('2d');
       oCtx.drawImage(orig, 0, 0);
       let oData = oCtx.getImageData(0, 0, w, h);
       let cCanvas = document.createElement('canvas');
-      cCanvas.width = w;  
+      cCanvas.width = w;
       cCanvas.height = h;
       let cCtx = cCanvas.getContext('2d');
       cCtx.drawImage(comp, 0, 0);
       let cData = cCtx.getImageData(0, 0, w, h);
       let dCanvas = document.createElement('canvas');
-      dCanvas.width = w;  
+      dCanvas.width = w;
       dCanvas.height = h;
       let dCtx = dCanvas.getContext('2d');
       let diffData = dCtx.createImageData(w, h);
@@ -403,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dCtx.putImageData(diffData, 0, 0);
       return dCanvas;
     }
-    
+
     function stitchImage(orig, diff, direction) {
       let w = orig.width, h = orig.height;
       let finalCanvas = document.createElement('canvas');
@@ -436,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       return finalCanvas;
     }
-    
+
     function drawResult(canvasElem, m = null, x = null, showDetails = null, originalImageX = 0, originalImageY = 0) {
       if (canvasElem) {
         resultCanvas.width = canvasElem.width;
@@ -457,22 +457,22 @@ document.addEventListener('DOMContentLoaded', () => {
         rCtx.fillText(text, textX, textY);
       }
     }
-    
+
     function clamp(val, mn, mx) {
       return val < mn ? mn : val > mx ? mx : val;
     }
-    
+
     function clampInt(val, mn, mx) {
       let v = Math.floor(Math.abs(val));
       return v < mn ? mn : v > mx ? mx : v;
     }
-    
+
     async function compileVideo(originalFile) {
         setProcessingState(true, 'Loading FFmpeg...');
         if (!ffmpeg.isLoaded()) {
             await ffmpeg.load();
         }
-        
+
         setProcessingState(true, 'Writing files to FFmpeg...');
         // Write original video to FFmpeg's virtual file system
         ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(originalFile));
@@ -482,11 +482,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const filename = `frame_${String(i).padStart(4, '0')}.png`;
             ffmpeg.FS('writeFile', filename, await fetchFile(new Blob([Uint8Array.from(atob(frameData), c => c.charCodeAt(0))])));
         }
-    
+
         setProcessingState(true, 'Compiling video...');
         // Run FFmpeg to create a new video from the processed frames and original audio
         await ffmpeg.run(
-            '-framerate', '30',  
+            '-framerate', '30',
             '-i', 'frame_%04d.png',
             '-i', 'input.mp4',
             '-c:v', 'libx264',
@@ -496,24 +496,24 @@ document.addEventListener('DOMContentLoaded', () => {
             '-pix_fmt', 'yuv420p',
             'output.mp4'
         );
-        
+
         setProcessingState(true, 'Creating download link...');
         const data = ffmpeg.FS('readFile', 'output.mp4');
         const blob = new Blob([data.buffer], { type: 'video/mp4' });
         const videoURL = URL.createObjectURL(blob);
-        
+
         const link = document.createElement('a');
         link.href = videoURL;
         link.download = `${originalFileName}_processed.mp4`;
         link.click();
-        
+
         // Cleanup the virtual file system
         ffmpeg.FS('unlink', 'input.mp4');
         for (let i = 0; i < processedFrames.length; i++) {
             const filename = `frame_${String(i).padStart(4, '0')}.png`;
             ffmpeg.FS('unlink', filename);
         }
-        
+
         setTimeout(() => setProcessingState(false), 500);
     }
 });
