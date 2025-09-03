@@ -61,7 +61,7 @@
     <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
       <div class="flex-1 w-full">
         <label for="mInput" class="font-semibold mb-2 block">m (1-5): <span id="mVal" class="font-normal">3</span></label>
-        <input id="mInput" type="range" min="1" max="5" value="3" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
+        <input id="mInput" type="range" min="1" max="5" value="4" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
       </div>
       <div class="flex-1 w-full">
         <label for="xInput" class="font-semibold mb-2 block">x (1-10): <span id="xVal" class="font-normal">5</span></label>
@@ -305,9 +305,9 @@
     standardBtn.addEventListener('click', async () => {
       if (!loadedFile || isVideo) return;
       setProcessingState(true);
-      mInput.value = 3;
+      mInput.value = 4;
       xInput.value = 5;
-      mVal.textContent = 3;
+      mVal.textContent = 4;
       xVal.textContent = 5;
       await processImageFile(loadedFile);
     });
@@ -601,3 +601,4 @@
   </script>
 </body>
 </html>
+
