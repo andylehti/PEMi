@@ -60,7 +60,7 @@
 
     <div class="flex flex-col md:flex-row items-center justify-center space-y-4 md:space-y-0 md:space-x-4 mb-6">
       <div class="flex-1 w-full">
-        <label for="mInput" class="font-semibold mb-2 block">m (1-5): <span id="mVal" class="font-normal">3</span></label>
+        <label for="mInput" class="font-semibold mb-2 block">m (1-5): <span id="mVal" class="font-normal">4</span></label>
         <input id="mInput" type="range" min="1" max="5" value="4" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer">
       </div>
       <div class="flex-1 w-full">
@@ -432,7 +432,7 @@
 
     // This function can now take a callback to handle asynchronous processing
     function processFile(imgElem, m, x, stitchDirection, showDetails, callback) {
-      let scaleFactor = m * (x * 5) * 50;
+      let scaleFactor = m * (x * 5) * 47;
       let quality = Math.min(10, x);
 
       compressImage(imgElem, quality, compImg => {
@@ -601,4 +601,3 @@
   </script>
 </body>
 </html>
-
